@@ -113,9 +113,13 @@ document.getElementById('bulkIncomeForm').addEventListener('submit', async funct
         });
 
         if (response.ok) {
-            status.textContent = `✓ ${payloadData.length} income record(s) synced to Supabase.`;
-            status.className = "message success";
-            status.style.display = "block";
+            if (typeof showToast === 'function') {
+                showToast(`${payloadData.length} income record(s) synced to Supabase!`, 'success');
+            } else {
+                status.textContent = `✓ ${payloadData.length} income record(s) synced to Supabase.`;
+                status.className = "message success";
+                status.style.display = "block";
+            }
 
             // Signal dashboard / list pages to refresh
             localStorage.setItem('income_added', Date.now().toString());
@@ -131,9 +135,13 @@ document.getElementById('bulkIncomeForm').addEventListener('submit', async funct
             throw new Error("Bad Response");
         }
     } catch (err) {
-        status.textContent = "Connection Error! Ensure n8n Webhook is active and CORS is enabled.";
-        status.className = "message error";
-        status.style.display = "block";
+        if (typeof showToast === 'function') {
+            showToast('Connection Error! Ensure n8n Webhook is active.', 'error', 6000);
+        } else {
+            status.textContent = "Connection Error! Ensure n8n Webhook is active and CORS is enabled.";
+            status.className = "message error";
+            status.style.display = "block";
+        }
     } finally {
         btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Sync to Supabase';
         btn.disabled = false;

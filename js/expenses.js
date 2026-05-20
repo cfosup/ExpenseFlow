@@ -155,6 +155,35 @@ function clearFilters() {
     applyFilters();
 }
 
+// ---- CSV Export ----
+function exportCSV() {
+    if (filteredExpenses.length === 0) {
+        if (typeof showToast === 'function') showToast('No data to export', 'warning');
+        return;
+    }
+    const headers = ['Date', 'Category', 'Subcategory', 'Notes', 'Paid Via', 'Amount'];
+    const rows = filteredExpenses.map(exp => {
+        const { subcategory, notes } = splitDescription(exp.description);
+        return [
+            exp.date || '',
+            (exp.account_name || '').replace(/,/g, ';'),
+            subcategory.replace(/,/g, ';'),
+            notes.replace(/,/g, ';'),
+            (exp.paid_through_account_name || '').replace(/,/g, ';'),
+            exp.total || 0
+        ].join(',');
+    });
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    if (typeof showToast === 'function') showToast(`Exported ${filteredExpenses.length} records to CSV`, 'success');
+}
+
 // ============================================================
 // SORT & RENDER
 // ============================================================
@@ -207,7 +236,7 @@ function renderTable(expenses) {
             <td class="td-subcat">${escapeHtml(subcategory)}</td>
             <td class="td-notes" title="${escapeAttr(notes)}">${escapeHtml(notes)}</td>
             <td class="td-paid-via">${escapeHtml(exp.paid_through_account_name || '—')}</td>
-            <td class="td-amount">${formatCurrency(exp.total)}</td>
+            <td class="td-amount ${getAmountClass(exp.total)}">${formatCurrency(exp.total)}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -267,6 +296,13 @@ function escapeHtml(str) {
 
 function escapeAttr(str) {
     return (str || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function getAmountClass(amount) {
+    const n = parseFloat(amount) || 0;
+    if (n >= 50000) return 'amount-high';
+    if (n >= 10000) return 'amount-mid';
+    return '';
 }
 
 // ---- Category → gradient class mapping ----

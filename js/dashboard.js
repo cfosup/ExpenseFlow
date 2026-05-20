@@ -12,17 +12,33 @@ let dashFilteredIncomesDatesOnly = [];
 
 // ---- Color palette for charts ----
 const CHART_COLORS = [
-    '#A37764', '#6A9A6E', '#2B5A76', '#C4956E', '#6B3F6B',
-    '#7A5C2E', '#C45B4A', '#3D5A2A', '#8A655A', '#5A5A3D',
-    '#334466', '#7A3333', '#2A5A50', '#6B4D2E', '#4A6B8A'
+    '#8b5cf6', '#06b6d4', '#22c55e', '#f43f5e', '#f59e0b',
+    '#3b82f6', '#ec4899', '#6366f1', '#14b8a6', '#a855f7',
+    '#0ea5e9', '#10b981', '#e11d48', '#eab308', '#8b5cf6'
 ];
 
 const CHART_GRADIENTS = [
-    ['#A37764', '#C4956E'], ['#6A9A6E', '#8FBF8A'], ['#2B5A76', '#5A9ABF'],
-    ['#C4956E', '#E8D5C4'], ['#6B3F6B', '#A673A6'], ['#7A5C2E', '#BFA162'],
-    ['#C45B4A', '#E88A7A'], ['#3D5A2A', '#6B9A4A'], ['#8A655A', '#B8907A'],
-    ['#5A5A3D', '#8A8A6D']
+    ['#8b5cf6', '#a78bfa'], ['#06b6d4', '#22d3ee'], ['#22c55e', '#4ade80'],
+    ['#f43f5e', '#fb7185'], ['#f59e0b', '#fbbf24'], ['#3b82f6', '#60a5fa'],
+    ['#ec4899', '#f472b6'], ['#6366f1', '#818cf8'], ['#14b8a6', '#2dd4bf'],
+    ['#a855f7', '#c084fc']
 ];
+
+// Theme-aware color helper
+function getThemeColors() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    return {
+        cardBg: isDark ? '#111113' : '#ffffff',
+        text: isDark ? '#fafafa' : '#09090b',
+        textMuted: isDark ? '#a1a1aa' : '#71717a',
+        gridLine: isDark ? '#27272a' : '#e4e4e7',
+        noData: isDark ? '#52525b' : '#a1a1aa',
+        fontSans: '"Inter", "DM Sans", system-ui, sans-serif',
+        fontMono: '"JetBrains Mono", "Menlo", monospace',
+        incomeGrad: isDark ? ['#4ade80', '#22c55e'] : ['#22c55e', '#16a34a'],
+        expenseGrad: isDark ? ['#f87171', '#ef4444'] : ['#ef4444', '#dc2626'],
+    };
+}
 
 // ---- Tooltip ----
 let tooltip = null;
@@ -240,6 +256,7 @@ function applyDashFilters() {
 // RENDER ALL
 // ============================================================
 function renderDashboard() {
+    renderInsights();
     renderKPIs();
     renderPieChart();
     renderIncomeCompanyPieChart();
@@ -250,6 +267,120 @@ function renderDashboard() {
     renderPaymentChart();
     renderRecentList();
     renderCompanyChart();
+}
+
+// ============================================================
+// SMART INSIGHTS
+// ============================================================
+function renderInsights() {
+    const container = document.getElementById('insightsScroll');
+    if (!container) return;
+    
+    const expenses = dashFiltered;
+    const incomes = dashFilteredIncomes;
+    const insights = [];
+    
+    const totalSpent = expenses.reduce((s, e) => s + (parseFloat(e.total) || 0), 0);
+    const totalIncome = incomes.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+    
+    // 1. Top spending category
+    const catMap = {};
+    expenses.forEach(e => {
+        const cat = getBaseCategory(e.account_name);
+        catMap[cat] = (catMap[cat] || 0) + (parseFloat(e.total) || 0);
+    });
+    const topCat = Object.entries(catMap).sort((a, b) => b[1] - a[1])[0];
+    if (topCat) {
+        insights.push({
+            icon: '🏆', iconClass: 'insight-icon-purple',
+            label: 'Top Category',
+            value: topCat[0],
+            meta: `₹${abbreviate(topCat[1])} · ${((topCat[1] / totalSpent) * 100).toFixed(0)}% of total`
+        });
+    }
+    
+    // 2. Average daily spend
+    if (expenses.length > 0) {
+        const dates = [...new Set(expenses.map(e => e.date).filter(Boolean))];
+        const avgDaily = totalSpent / (dates.length || 1);
+        insights.push({
+            icon: '📊', iconClass: 'insight-icon-blue',
+            label: 'Avg Daily Spend',
+            value: '₹' + abbreviate(avgDaily),
+            meta: `Across ${dates.length} active day${dates.length !== 1 ? 's' : ''}`
+        });
+    }
+    
+    // 3. Savings rate
+    if (totalIncome > 0) {
+        const savingsRate = ((totalIncome - totalSpent) / totalIncome * 100);
+        insights.push({
+            icon: savingsRate >= 0 ? '💰' : '⚠️',
+            iconClass: savingsRate >= 0 ? 'insight-icon-green' : 'insight-icon-rose',
+            label: 'Savings Rate',
+            value: savingsRate.toFixed(1) + '%',
+            meta: savingsRate >= 0 ? `Saving ₹${abbreviate(totalIncome - totalSpent)}` : `Overspent by ₹${abbreviate(Math.abs(totalIncome - totalSpent))}`
+        });
+    }
+    
+    // 4. Top payment method
+    const payMap = {};
+    expenses.forEach(e => {
+        const m = e.paid_through_account_name || 'Unknown';
+        payMap[m] = (payMap[m] || 0) + 1;
+    });
+    const topPay = Object.entries(payMap).sort((a, b) => b[1] - a[1])[0];
+    if (topPay) {
+        insights.push({
+            icon: '💳', iconClass: 'insight-icon-cyan',
+            label: 'Preferred Payment',
+            value: topPay[0],
+            meta: `${topPay[1]} transaction${topPay[1] !== 1 ? 's' : ''} · ${((topPay[1] / expenses.length) * 100).toFixed(0)}%`
+        });
+    }
+    
+    // 5. Highest single expense
+    if (expenses.length > 0) {
+        const maxExp = expenses.reduce((max, e) => (parseFloat(e.total) || 0) > (parseFloat(max.total) || 0) ? e : max, expenses[0]);
+        insights.push({
+            icon: '🔥', iconClass: 'insight-icon-rose',
+            label: 'Largest Expense',
+            value: '₹' + abbreviate(parseFloat(maxExp.total) || 0),
+            meta: `${getBaseCategory(maxExp.account_name)} · ${formatDateFull(maxExp.date)}`
+        });
+    }
+    
+    // 6. Most active company
+    const compInsightMap = {};
+    expenses.forEach(e => {
+        const c = getExpenseCompany(e.account_name);
+        if (c) compInsightMap[c] = (compInsightMap[c] || 0) + (parseFloat(e.total) || 0);
+    });
+    const topComp = Object.entries(compInsightMap).sort((a, b) => b[1] - a[1])[0];
+    if (topComp) {
+        insights.push({
+            icon: '🏢', iconClass: 'insight-icon-amber',
+            label: 'Top Company',
+            value: topComp[0],
+            meta: `₹${abbreviate(topComp[1])} spent`
+        });
+    }
+    
+    if (insights.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    container.innerHTML = insights.map((ins, i) => `
+        <div class="insight-card" style="animation-delay: ${i * 0.05 + 0.1}s">
+            <div class="insight-icon ${ins.iconClass}">${ins.icon}</div>
+            <div class="insight-body">
+                <div class="insight-label">${ins.label}</div>
+                <div class="insight-value">${ins.value}</div>
+                <div class="insight-meta">${ins.meta}</div>
+            </div>
+        </div>
+    `).join('');
 }
 
 // ============================================================
@@ -280,14 +411,15 @@ function renderKPIs() {
     const netCard = document.getElementById('kpiNetCard');
     const netIcon = document.getElementById('kpiNetIcon');
     if (netCard && netIcon) {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         if (netBalance >= 0) {
             netCard.style.borderColor = 'var(--success)';
-            netIcon.style.background = 'linear-gradient(135deg, #e0f0e1, #a3cfa6)';
-            netIcon.style.color = 'var(--success)';
+            netIcon.style.background = isDark ? 'rgba(74, 222, 128, 0.15)' : 'rgba(34, 197, 94, 0.12)';
+            netIcon.style.color = isDark ? '#4ade80' : '#22c55e';
         } else {
             netCard.style.borderColor = 'var(--danger)';
-            netIcon.style.background = 'linear-gradient(135deg, #F8E0DC, #E0A09A)';
-            netIcon.style.color = 'var(--danger)';
+            netIcon.style.background = isDark ? 'rgba(248, 113, 113, 0.15)' : 'rgba(239, 68, 68, 0.12)';
+            netIcon.style.color = isDark ? '#f87171' : '#ef4444';
         }
     }
 
@@ -324,6 +456,7 @@ function animateValue(id, target, isCurrency) {
 // PIE CHART — Category Breakdown
 // ============================================================
 function renderPieChart() {
+    const tc = getThemeColors();
     const canvas = document.getElementById('chartPie');
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
@@ -346,8 +479,8 @@ function renderPieChart() {
 
     if (sorted.length === 0 || total === 0) {
         ctx.clearRect(0, 0, size, size);
-        ctx.fillStyle = '#BAAB92';
-        ctx.font = '500 14px "DM Sans", sans-serif';
+        ctx.fillStyle = tc.noData;
+        ctx.font = '500 14px ' + tc.fontSans;
         ctx.textAlign = 'center';
         ctx.fillText('No data available', size / 2, size / 2);
         document.getElementById('pieLegend').innerHTML = '';
@@ -373,7 +506,7 @@ function renderPieChart() {
         ctx.fill();
 
         // Thin separator
-        ctx.strokeStyle = '#FDFCF7';
+        ctx.strokeStyle = tc.cardBg;
         ctx.lineWidth = 2;
         ctx.stroke();
 
@@ -384,17 +517,17 @@ function renderPieChart() {
     // Inner circle (donut)
     ctx.beginPath();
     ctx.arc(cx, cy, 60, 0, 2 * Math.PI);
-    ctx.fillStyle = '#FDFCF7';
+    ctx.fillStyle = tc.cardBg;
     ctx.fill();
 
     // Center text
-    ctx.fillStyle = '#56453F';
-    ctx.font = '700 16px "Menlo", monospace';
+    ctx.fillStyle = tc.text;
+    ctx.font = '700 16px ' + tc.fontMono;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('₹' + abbreviate(total), cx, cy - 6);
-    ctx.font = '500 10px "DM Sans", sans-serif';
-    ctx.fillStyle = '#8A655A';
+    ctx.font = '500 10px ' + tc.fontSans;
+    ctx.fillStyle = tc.textMuted;
     ctx.fillText('TOTAL', cx, cy + 12);
 
     // Legend
@@ -447,6 +580,7 @@ function renderPieChart() {
 // BAR CHART — Monthly Trend
 // ============================================================
 function renderBarChart() {
+    const tc = getThemeColors();
     const canvas = document.getElementById('chartBar');
     const container = canvas.parentElement;
     const width = container.clientWidth - 40; // padding
@@ -474,8 +608,8 @@ function renderBarChart() {
 
     if (keys.length === 0) {
         ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = '#BAAB92';
-        ctx.font = '500 14px "DM Sans", sans-serif';
+        ctx.fillStyle = tc.noData;
+        ctx.font = '500 14px ' + tc.fontSans;
         ctx.textAlign = 'center';
         ctx.fillText('No data available', width / 2, height / 2);
         return;
@@ -494,10 +628,10 @@ function renderBarChart() {
 
     // Grid lines
     const gridLines = 5;
-    ctx.strokeStyle = '#E8E4D4';
+    ctx.strokeStyle = tc.gridLine;
     ctx.lineWidth = 1;
-    ctx.fillStyle = '#8A655A';
-    ctx.font = '500 10px "Menlo", monospace';
+    ctx.fillStyle = tc.textMuted;
+    ctx.font = '500 10px ' + tc.fontMono;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
 
@@ -536,8 +670,8 @@ function renderBarChart() {
 
         // Month label
         const label = formatMonthLabel(key);
-        ctx.fillStyle = '#8A655A';
-        ctx.font = '500 10px "DM Sans", sans-serif';
+        ctx.fillStyle = tc.textMuted;
+        ctx.font = '500 10px ' + tc.fontSans;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.fillText(label, x + barWidth / 2, marginTop + chartH + 8);
@@ -566,6 +700,7 @@ function renderBarChart() {
 // TOP 5 CATEGORIES (Horizontal bars)
 // ============================================================
 function renderTop5() {
+    const tc = getThemeColors();
     const container = document.getElementById('top5List');
     const catMap = {};
     dashFiltered.forEach(e => {
@@ -577,7 +712,7 @@ function renderTop5() {
     const maxVal = sorted.length > 0 ? sorted[0][1] : 1;
 
     if (sorted.length === 0) {
-        container.innerHTML = '<div style="text-align:center;color:#BAAB92;padding:2rem;font-size:0.88rem;">No data available</div>';
+        container.innerHTML = '<div style="text-align:center;color:' + tc.noData + ';padding:2rem;font-size:0.88rem;">No data available</div>';
         return;
     }
 
@@ -608,6 +743,8 @@ function renderTop5() {
 // DAILY SPENDING — Area/Line Chart
 // ============================================================
 function renderDailyChart() {
+    const tc = getThemeColors();
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const canvas = document.getElementById('chartDaily');
     const container = canvas.parentElement;
     const width = container.clientWidth - 40;
@@ -634,8 +771,8 @@ function renderDailyChart() {
 
     if (keys.length === 0) {
         ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = '#BAAB92';
-        ctx.font = '500 14px "DM Sans", sans-serif';
+        ctx.fillStyle = tc.noData;
+        ctx.font = '500 14px ' + tc.fontSans;
         ctx.textAlign = 'center';
         ctx.fillText('No data available', width / 2, height / 2);
         return;
@@ -653,10 +790,10 @@ function renderDailyChart() {
 
     // Grid
     const gridLines = 4;
-    ctx.strokeStyle = '#E8E4D4';
+    ctx.strokeStyle = tc.gridLine;
     ctx.lineWidth = 1;
-    ctx.fillStyle = '#8A655A';
-    ctx.font = '500 10px "Menlo", monospace';
+    ctx.fillStyle = tc.textMuted;
+    ctx.font = '500 10px ' + tc.fontMono;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
 
@@ -682,8 +819,8 @@ function renderDailyChart() {
 
     // Area fill
     const areaGrad = ctx.createLinearGradient(0, marginTop, 0, marginTop + chartH);
-    areaGrad.addColorStop(0, 'rgba(163, 119, 100, 0.25)');
-    areaGrad.addColorStop(1, 'rgba(163, 119, 100, 0.02)');
+    areaGrad.addColorStop(0, isDark ? 'rgba(139, 92, 246, 0.25)' : 'rgba(124, 58, 237, 0.2)');
+    areaGrad.addColorStop(1, isDark ? 'rgba(139, 92, 246, 0.02)' : 'rgba(124, 58, 237, 0.02)');
 
     ctx.beginPath();
     ctx.moveTo(points[0].x, marginTop + chartH);
@@ -699,7 +836,7 @@ function renderDailyChart() {
         if (i === 0) ctx.moveTo(p.x, p.y);
         else ctx.lineTo(p.x, p.y);
     });
-    ctx.strokeStyle = '#A37764';
+    ctx.strokeStyle = '#8b5cf6';
     ctx.lineWidth = 2.5;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
@@ -709,17 +846,17 @@ function renderDailyChart() {
     points.forEach(p => {
         ctx.beginPath();
         ctx.arc(p.x, p.y, 3.5, 0, 2 * Math.PI);
-        ctx.fillStyle = '#A37764';
+        ctx.fillStyle = '#8b5cf6';
         ctx.fill();
-        ctx.strokeStyle = '#FDFCF7';
+        ctx.strokeStyle = tc.cardBg;
         ctx.lineWidth = 2;
         ctx.stroke();
     });
 
     // X labels (show max 8)
     const labelStep = Math.max(1, Math.ceil(keys.length / 8));
-    ctx.fillStyle = '#8A655A';
-    ctx.font = '500 9px "DM Sans", sans-serif';
+    ctx.fillStyle = tc.textMuted;
+    ctx.font = '500 9px ' + tc.fontSans;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     keys.forEach((k, i) => {
@@ -751,6 +888,7 @@ function renderDailyChart() {
 // PAYMENT METHOD PIE CHART
 // ============================================================
 function renderPaymentChart() {
+    const tc = getThemeColors();
     const canvas = document.getElementById('chartPayment');
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
@@ -772,8 +910,8 @@ function renderPaymentChart() {
 
     if (sorted.length === 0 || total === 0) {
         ctx.clearRect(0, 0, size, size);
-        ctx.fillStyle = '#BAAB92';
-        ctx.font = '500 14px "DM Sans", sans-serif';
+        ctx.fillStyle = tc.noData;
+        ctx.font = '500 14px ' + tc.fontSans;
         ctx.textAlign = 'center';
         ctx.fillText('No data', size / 2, size / 2);
         document.getElementById('paymentLegend').innerHTML = '';
@@ -787,7 +925,7 @@ function renderPaymentChart() {
     ctx.clearRect(0, 0, size, size);
 
     // Use offset colors for payment to differentiate from category pie
-    const payColors = ['#2B5A76', '#C4956E', '#6A9A6E', '#6B3F6B', '#C45B4A', '#7A5C2E', '#3D5A2A', '#8A655A'];
+    const payColors = ['#3b82f6', '#f59e0b', '#22c55e', '#a855f7', '#f43f5e', '#06b6d4', '#6366f1', '#ec4899'];
 
     sorted.forEach(([method, val], i) => {
         const sliceAngle = (val / total) * 2 * Math.PI;
@@ -799,7 +937,7 @@ function renderPaymentChart() {
         ctx.closePath();
         ctx.fillStyle = color;
         ctx.fill();
-        ctx.strokeStyle = '#FDFCF7';
+        ctx.strokeStyle = tc.cardBg;
         ctx.lineWidth = 2;
         ctx.stroke();
 
@@ -810,16 +948,16 @@ function renderPaymentChart() {
     // Donut hole
     ctx.beginPath();
     ctx.arc(cx, cy, 50, 0, 2 * Math.PI);
-    ctx.fillStyle = '#FDFCF7';
+    ctx.fillStyle = tc.cardBg;
     ctx.fill();
 
-    ctx.fillStyle = '#56453F';
-    ctx.font = '700 12px "Menlo", monospace';
+    ctx.fillStyle = tc.text;
+    ctx.font = '700 12px ' + tc.fontMono;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(sorted.length + '', cx, cy - 4);
-    ctx.font = '500 9px "DM Sans", sans-serif';
-    ctx.fillStyle = '#8A655A';
+    ctx.font = '500 9px ' + tc.fontSans;
+    ctx.fillStyle = tc.textMuted;
     ctx.fillText('METHODS', cx, cy + 10);
 
     // Legend
@@ -859,17 +997,18 @@ function renderPaymentChart() {
 // RECENT EXPENSES LIST
 // ============================================================
 function renderRecentList() {
+    const tc = getThemeColors();
     const container = document.getElementById('recentList');
     const recent = [...dashFiltered]
         .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
         .slice(0, 8);
 
     if (recent.length === 0) {
-        container.innerHTML = '<div style="text-align:center;color:#BAAB92;padding:2rem;font-size:0.88rem;">No recent expenses</div>';
+        container.innerHTML = '<div style="text-align:center;color:' + tc.noData + ';padding:2rem;font-size:0.88rem;">No recent expenses</div>';
         return;
     }
 
-    const dotColors = ['#A37764', '#6A9A6E', '#2B5A76', '#C4956E', '#6B3F6B', '#C45B4A', '#7A5C2E', '#3D5A2A'];
+    const dotColors = ['#8b5cf6', '#22c55e', '#3b82f6', '#f59e0b', '#a855f7', '#f43f5e', '#06b6d4', '#6366f1'];
 
     container.innerHTML = recent.map((e, i) => `
         <div class="recent-item">
@@ -887,6 +1026,7 @@ function renderRecentList() {
 // COMPANY BREAKDOWN BAR CHART
 // ============================================================
 function renderCompanyChart() {
+    const tc = getThemeColors();
     const canvas = document.getElementById('chartCompany');
     if (!canvas) return;
     const container = canvas.parentElement;
@@ -929,8 +1069,8 @@ function renderCompanyChart() {
 
     if (keys.length === 0) {
         ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = '#BAAB92';
-        ctx.font = '500 14px "DM Sans", sans-serif';
+        ctx.fillStyle = tc.noData;
+        ctx.font = '500 14px ' + tc.fontSans;
         ctx.textAlign = 'center';
         ctx.fillText('No data available', width / 2, height / 2);
         return;
@@ -950,10 +1090,10 @@ function renderCompanyChart() {
 
     // Grid lines
     const gridLines = 5;
-    ctx.strokeStyle = '#E8E4D4';
+    ctx.strokeStyle = tc.gridLine;
     ctx.lineWidth = 1;
-    ctx.fillStyle = '#8A655A';
-    ctx.font = '500 10px "Menlo", monospace';
+    ctx.fillStyle = tc.textMuted;
+    ctx.font = '500 10px ' + tc.fontMono;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
 
@@ -986,22 +1126,22 @@ function renderCompanyChart() {
 
         // Draw Income (Green Gradient)
         const incGrad = ctx.createLinearGradient(incX, incY + incH, incX, incY);
-        incGrad.addColorStop(0, '#6A9A6E');
-        incGrad.addColorStop(1, '#8FBF8A');
+        incGrad.addColorStop(0, tc.incomeGrad[0]);
+        incGrad.addColorStop(1, tc.incomeGrad[1]);
         ctx.fillStyle = incGrad;
         ctx.fillRect(incX, incY, barWidth, incH);
         barRects.push({ x: incX, y: incY, w: barWidth, h: incH, type: 'Income', company: key, val: data.income });
 
-        // Draw Expense (Red/Brown Gradient)
+        // Draw Expense (Red Gradient)
         const expGrad = ctx.createLinearGradient(expX, expY + expH, expX, expY);
-        expGrad.addColorStop(0, '#A37764');
-        expGrad.addColorStop(1, '#C4956E');
+        expGrad.addColorStop(0, tc.expenseGrad[0]);
+        expGrad.addColorStop(1, tc.expenseGrad[1]);
         ctx.fillStyle = expGrad;
         ctx.fillRect(expX, expY, barWidth, expH);
         barRects.push({ x: expX, y: expY, w: barWidth, h: expH, type: 'Expense', company: key, val: data.expense });
 
-        ctx.fillStyle = '#8A655A';
-        ctx.font = '500 10px "DM Sans", sans-serif';
+        ctx.fillStyle = tc.textMuted;
+        ctx.font = '500 10px ' + tc.fontSans;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.fillText(key, groupX + groupGap / 2, marginTop + chartH + 8);
@@ -1030,6 +1170,7 @@ function renderCompanyChart() {
 // NEW CHARTS — INCOME STREAM & MONTHLY CASH FLOW
 // ============================================================
 function renderIncomeCompanyPieChart() {
+    const tc = getThemeColors();
     const canvas = document.getElementById('chartIncomeCompany');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -1052,8 +1193,8 @@ function renderIncomeCompanyPieChart() {
 
     if (sorted.length === 0 || total === 0) {
         ctx.clearRect(0, 0, size, size);
-        ctx.fillStyle = '#BAAB92';
-        ctx.font = '500 14px "DM Sans", sans-serif';
+        ctx.fillStyle = tc.noData;
+        ctx.font = '500 14px ' + tc.fontSans;
         ctx.textAlign = 'center';
         ctx.fillText('No data available', size / 2, size / 2);
         document.getElementById('incomeCompanyLegend').innerHTML = '';
@@ -1066,8 +1207,8 @@ function renderIncomeCompanyPieChart() {
 
     ctx.clearRect(0, 0, size, size);
     
-    // Greenish/teal/gold/blue color palette for income to contrast with expenses
-    const incColors = ['#6A9A6E', '#2B5A76', '#7A5C2E', '#6B3F6B', '#C4956E', '#8FBF8A', '#5A9ABF', '#BFA162'];
+    // Modern vibrant color palette for income
+    const incColors = ['#22c55e', '#3b82f6', '#f59e0b', '#a855f7', '#f43f5e', '#4ade80', '#0ea5e9', '#eab308'];
 
     sorted.forEach(([company, val], i) => {
         const sliceAngle = (val / total) * 2 * Math.PI;
@@ -1079,7 +1220,7 @@ function renderIncomeCompanyPieChart() {
         ctx.closePath();
         ctx.fillStyle = color;
         ctx.fill();
-        ctx.strokeStyle = '#FDFCF7';
+        ctx.strokeStyle = tc.cardBg;
         ctx.lineWidth = 2;
         ctx.stroke();
 
@@ -1090,16 +1231,16 @@ function renderIncomeCompanyPieChart() {
     // Donut hole
     ctx.beginPath();
     ctx.arc(cx, cy, 50, 0, 2 * Math.PI);
-    ctx.fillStyle = '#FDFCF7';
+    ctx.fillStyle = tc.cardBg;
     ctx.fill();
 
-    ctx.fillStyle = '#56453F';
-    ctx.font = '700 11px "Menlo", monospace';
+    ctx.fillStyle = tc.text;
+    ctx.font = '700 11px ' + tc.fontMono;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('₹' + abbreviate(total), cx, cy - 6);
-    ctx.font = '500 8px "DM Sans", sans-serif';
-    ctx.fillStyle = '#8A655A';
+    ctx.font = '500 8px ' + tc.fontSans;
+    ctx.fillStyle = tc.textMuted;
     ctx.fillText('TOTAL INCOME', cx, cy + 8);
 
     // Legend
@@ -1136,6 +1277,7 @@ function renderIncomeCompanyPieChart() {
 }
 
 function renderCashFlowChart() {
+    const tc = getThemeColors();
     const canvas = document.getElementById('chartCashFlow');
     if (!canvas) return;
     const container = canvas.parentElement;
@@ -1170,8 +1312,8 @@ function renderCashFlowChart() {
     
     if (keys.length === 0) {
         ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = '#BAAB92';
-        ctx.font = '500 14px "DM Sans", sans-serif';
+        ctx.fillStyle = tc.noData;
+        ctx.font = '500 14px ' + tc.fontSans;
         ctx.textAlign = 'center';
         ctx.fillText('No data available', width / 2, height / 2);
         return;
@@ -1191,10 +1333,10 @@ function renderCashFlowChart() {
 
     // Grid lines
     const gridLines = 5;
-    ctx.strokeStyle = '#E8E4D4';
+    ctx.strokeStyle = tc.gridLine;
     ctx.lineWidth = 1;
-    ctx.fillStyle = '#8A655A';
-    ctx.font = '500 10px "Menlo", monospace';
+    ctx.fillStyle = tc.textMuted;
+    ctx.font = '500 10px ' + tc.fontMono;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
 
@@ -1227,23 +1369,23 @@ function renderCashFlowChart() {
 
         // Draw Inflow (Income)
         const incGrad = ctx.createLinearGradient(incX, incY + incH, incX, incY);
-        incGrad.addColorStop(0, '#6A9A6E');
-        incGrad.addColorStop(1, '#8FBF8A');
+        incGrad.addColorStop(0, tc.incomeGrad[0]);
+        incGrad.addColorStop(1, tc.incomeGrad[1]);
         ctx.fillStyle = incGrad;
         ctx.fillRect(incX, incY, barWidth, incH);
         barRects.push({ x: incX, y: incY, w: barWidth, h: incH, type: 'Income', month: key, val: data.income });
 
         // Draw Outflow (Expense)
         const expGrad = ctx.createLinearGradient(expX, expY + expH, expX, expY);
-        expGrad.addColorStop(0, '#A37764');
-        expGrad.addColorStop(1, '#C4956E');
+        expGrad.addColorStop(0, tc.expenseGrad[0]);
+        expGrad.addColorStop(1, tc.expenseGrad[1]);
         ctx.fillStyle = expGrad;
         ctx.fillRect(expX, expY, barWidth, expH);
         barRects.push({ x: expX, y: expY, w: barWidth, h: expH, type: 'Expense', month: key, val: data.expense });
 
         const label = formatMonthLabel(key);
-        ctx.fillStyle = '#8A655A';
-        ctx.font = '500 10px "DM Sans", sans-serif';
+        ctx.fillStyle = tc.textMuted;
+        ctx.font = '500 10px ' + tc.fontSans;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.fillText(label, groupX + groupGap / 2, marginTop + chartH + 8);
@@ -1351,6 +1493,13 @@ window.addEventListener('resize', () => {
 window.addEventListener('storage', function (e) {
     if (e.key === 'expense_added' || e.key === 'income_added') {
         setTimeout(() => loadDashboard(), 1000);
+    }
+});
+
+// Re-render charts when theme changes
+document.addEventListener('themechange', () => {
+    if (dashFiltered.length > 0 || dashFilteredIncomes.length > 0) {
+        renderDashboard();
     }
 });
 
