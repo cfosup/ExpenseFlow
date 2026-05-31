@@ -5,17 +5,17 @@
 
 const CONFIG = {
     // n8n Webhook: Add/create expenses in Zoho Books
-    EXPENSE_WEBHOOK_URL: "http://168.144.82.188:5678/webhook/zohobooks",
+    EXPENSE_WEBHOOK_URL: "https://168-144.82.188.sslip.io/webhook/zohobooks",
 
     // n8n Webhook: Get all expenses from Zoho Books
-    GET_EXPENSES_URL: "http://168.144.82.188:5678/webhook/getexpences",
+    GET_EXPENSES_URL: "https://168.144.82.188.sslip.io/webhook/getexpences",
 
     // n8n Webhook: AI Chat assistant
-    CHAT_WEBHOOK_URL: "http://168.144.82.188:5678/webhook/d927bd76-dbf6-4793-97e1-6ce1c3251034/chat",
+    CHAT_WEBHOOK_URL: "https://168.144.82.188.sslip.io/webhook/d927bd76-dbf6-4793-97e1-6ce1c3251034/chat",
 
     // n8n Webhook: Add/create income in Supabase
-    INCOME_WEBHOOK_URL: "http://168.144.82.188:5678/webhook/add-income",
+    INCOME_WEBHOOK_URL: "https://168.144.82.188.sslip.io/webhook/add-income",
 
     // n8n Webhook: Get all income from Supabase
-    GET_INCOMES_URL: "http://168.144.82.188:5678/webhook/get-income",
+    GET_INCOMES_URL: "https://168.144.82.188.sslip.io/webhook/get-income",
 };

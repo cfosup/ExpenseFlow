@@ -5,7 +5,7 @@ const payload = {
     chatInput: "hello"
 };
 
-fetch("http://168.144.82.188:5678/webhook/d927bd76-dbf6-4793-97e1-6ce1c3251034/chat", {
+fetch("https://168-144.82.188.sslip.io/webhook/d927bd76-dbf6-4793-97e1-6ce1c3251034/chat", {
     method: "POST",
     headers: {
         "Content-Type": "application/json",
