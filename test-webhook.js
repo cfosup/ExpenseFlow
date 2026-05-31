@@ -5,7 +5,7 @@ const payload = {
     chatInput: "hello"
 };
 
-fetch("https://n8n.ajaychanumolu.me/webhook/d927bd76-dbf6-4793-97e1-6ce1c3251034/chat", {
+fetch("http://168.144.82.188:5678/webhook/d927bd76-dbf6-4793-97e1-6ce1c3251034/chat", {
     method: "POST",
     headers: {
         "Content-Type": "application/json",
