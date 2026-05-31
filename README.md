@@ -4,7 +4,7 @@ A high-fidelity, minimal financial tracking dashboard and ledger for Zoho Books 
 
 ---
 
-## ✨ Features
+## ✨ Features of the App
 
 - **🎨 Modern Minimalist Design** — Clean card layouts, Inter font family, JetBrains Mono numbers, smooth custom fade-in transitions, and theme-aware styling.
 - **🌓 Dual-Theme Engine** — Smooth switching between Light and Dark mode with persistence via `localStorage` and system preference auto-detection.
