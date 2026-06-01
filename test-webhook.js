@@ -5,7 +5,7 @@ const payload = {
     chatInput: "hello"
 };
 
-fetch("https://168-144.82.188.sslip.io/webhook/d927bd76-dbf6-4793-97e1-6ce1c3251034/chat", {
+fetch("https://n8n.skillednation.ai/webhook/d927bd76-dbf6-4793-97e1-6ce1c3251034/chat", {
     method: "POST",
     headers: {
         "Content-Type": "application/json",
