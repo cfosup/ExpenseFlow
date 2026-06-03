@@ -1504,4 +1504,11 @@ document.addEventListener('themechange', () => {
 });
 
 // ---- Initial load ----
+const now = new Date();
+if (document.getElementById('dashFrom')) {
+    document.getElementById('dashFrom').value = formatISO(new Date(now.getFullYear(), now.getMonth(), 1));
+}
+if (document.getElementById('dashTo')) {
+    document.getElementById('dashTo').value = formatISO(now);
+}
 loadDashboard();

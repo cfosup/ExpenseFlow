@@ -361,4 +361,17 @@ function getExpenseCompany(accountName) {
 }
 
 // ---- Initial load ----
+const now = new Date();
+const currentYear = now.getFullYear();
+const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+const currentDay = String(now.getDate()).padStart(2, '0');
+const defaultFromDate = `${currentYear}-${currentMonth}-01`;
+const defaultToDate = `${currentYear}-${currentMonth}-${currentDay}`;
+
+if (document.getElementById('filterFrom')) {
+    document.getElementById('filterFrom').value = defaultFromDate;
+}
+if (document.getElementById('filterTo')) {
+    document.getElementById('filterTo').value = defaultToDate;
+}
 loadExpenses();

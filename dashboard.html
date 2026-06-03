@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zoho Books — Expense Dashboard</title>
-    <meta name="description" content="Visual analytics dashboard for Zoho Books expenses — charts, trends, and category breakdowns.">
+    <title>ExpenseFlow — Expense Dashboard</title>
+    <meta name="description" content="Visual analytics dashboard for ExpenseFlow expenses — charts, trends, and category breakdowns.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,8 +18,8 @@
 <nav class="nav">
     <div class="nav-inner" style="max-width:1200px;">
         <a href="index.html" class="nav-logo">
-            <div class="nav-logo-icon">ZB</div>
-            Zoho Books
+            <div class="nav-logo-icon">EF</div>
+            ExpenseFlow
         </a>
         <div class="nav-right">
             <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle dark/light mode">
@@ -51,7 +51,7 @@
     <div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem;">
         <div>
             <h1 class="page-title">Expense Dashboard</h1>
-            <p class="page-desc">Analytics overview of your Zoho Books expenses.</p>
+            <p class="page-desc">Analytics overview of your ExpenseFlow expenses.</p>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
             <button class="btn btn-outline btn-sm" id="dashRefreshBtn" onclick="loadDashboard()">
@@ -64,8 +64,8 @@
     <!-- Date Filter & Quick Presets -->
     <div class="dash-filter-bar" id="dashFilterBar">
         <div class="dash-filter-presets">
-            <button class="dash-preset active" data-range="all" onclick="setPreset(this, 'all')">All Time</button>
-            <button class="dash-preset" data-range="thisMonth" onclick="setPreset(this, 'thisMonth')">This Month</button>
+            <button class="dash-preset" data-range="all" onclick="setPreset(this, 'all')">All Time</button>
+            <button class="dash-preset active" data-range="thisMonth" onclick="setPreset(this, 'thisMonth')">This Month</button>
             <button class="dash-preset" data-range="lastMonth" onclick="setPreset(this, 'lastMonth')">Last Month</button>
             <button class="dash-preset" data-range="last3" onclick="setPreset(this, 'last3')">Last 3 Months</button>
             <button class="dash-preset" data-range="last6" onclick="setPreset(this, 'last6')">Last 6 Months</button>
@@ -273,7 +273,7 @@
 </main>
 
 <footer class="footer">
-    &copy; 2026 Expense Ledger &mdash; Synced with Zoho Books via n8n
+    &copy; 2026 ExpenseFlow &mdash; Synced with Zoho Books via n8n
 </footer>
 
 <!-- CHAT TOGGLE -->
@@ -299,7 +299,7 @@
         </div>
     </div>
     <div class="chat-messages" id="chatMessages">
-        <div class="chat-msg bot">Hello! I'm your Zoho Books assistant. How can I help you today?</div>
+        <div class="chat-msg bot">Hello! I'm your ExpenseFlow assistant. How can I help you today?</div>
     </div>
     <div class="chat-error" id="chatError"></div>
     <div class="chat-input-area">

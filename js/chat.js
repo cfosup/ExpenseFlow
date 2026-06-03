@@ -207,7 +207,7 @@ window.clearChat = function() {
     sessionStorage.setItem('chatSessionId', chatSessionId);
     
     chatMessages.innerHTML = '';
-    appendMsg("Hello! I'm your Zoho Books assistant. How can I help you today?", 'bot');
+    appendMsg("Hello! I'm your ExpenseFlow assistant. How can I help you today?", 'bot');
     renderQuickActions();
     
     if (typeof showToast === 'function') showToast('Chat cleared', 'info', 2000);
