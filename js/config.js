@@ -18,4 +18,7 @@ const CONFIG = {
 
     // n8n Webhook: Get all income from Supabase
     GET_INCOMES_URL: "https://n8n.skillednation.ai/webhook/get-income",
+
+    // n8n Webhook: Create new dynamic company
+    CREATE_COMPANY_URL: "https://n8n.skillednation.ai/webhook/create_company",
 };

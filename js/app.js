@@ -25,11 +25,7 @@ function createRow() {
                     <label>Company</label>
                     <select class="company-input" required>
                         <option value="">— Select —</option>
-                        <option value="ECBC">ECBC</option>
-                        <option value="2024">2024</option>
-                        <option value="MINING">MINING</option>
-                        <option value="LAYOUT">LAYOUT</option>
-                        <option value="ATC">ATC</option>
+                        ${getCompanyOptionsHTML()}
                     </select>
                 </div>
                 <div class="form-group">

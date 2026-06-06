@@ -88,15 +88,7 @@ function applyFilters() {
 
     // Company filter
     if (company) {
-        result = result.filter(e => {
-            const expCompany = getExpenseCompany(e.account_name);
-            if (expCompany === company) return true;
-            
-            const matchesDirect = e.company === company || e.customer_name === company || e.reference_number === company;
-            const matchesCustom = Array.isArray(e.custom_fields) && e.custom_fields.some(cf => cf.value === company);
-            const matchesNote = e.notes && e.notes.includes(company);
-            return matchesDirect || matchesCustom || matchesNote;
-        });
+        result = result.filter(e => resolveExpenseCompany(e) === company);
     }
 
     // Text search filter
@@ -349,14 +341,62 @@ window.addEventListener('storage', function (e) {
 
 function getExpenseCompany(accountName) {
     if (!accountName) return '';
-    const parts = accountName.split(' - ');
+    const parts = accountName.split(/\s*-\s*/);
     if (parts.length > 1) {
         let last = parts[parts.length - 1].trim();
         if (last === '50') last = 'ATC';
-        if (['ECBC', '2024', 'MINING', 'LAYOUT', 'ATC'].includes(last)) {
-            return last;
+        
+        const dynamicCompanies = typeof getCompanies === 'function'
+            ? getCompanies().map(c => c.company_name)
+            : [];
+            
+        const allCompanies = [...new Set([...dynamicCompanies, 'ECBC', '2024', 'MINING', 'LAYOUT', 'ATC'])];
+
+        const cleanLast = last.toLowerCase();
+        const matched = allCompanies.find(c => c.toLowerCase() === cleanLast);
+        if (matched) {
+            return matched;
         }
     }
+    return '';
+}
+
+function resolveExpenseCompany(e) {
+    if (!e) return '';
+    
+    const allCompanies = typeof getCompanies === 'function'
+        ? [...new Set([...getCompanies().map(c => c.company_name), 'ECBC', '2024', 'MINING', 'LAYOUT', 'ATC'])]
+        : ['ECBC', '2024', 'MINING', 'LAYOUT', 'ATC'];
+
+    function findMatch(val) {
+        if (!val) return null;
+        const cleanVal = val.toString().trim().toLowerCase();
+        return allCompanies.find(c => c.toLowerCase() === cleanVal) || null;
+    }
+    
+    // 1. Try parsing from account name
+    let comp = getExpenseCompany(e.account_name);
+    if (comp) return comp;
+    
+    // 2. Try direct fields case-insensitively
+    let match = findMatch(e.company) || findMatch(e.customer_name) || findMatch(e.reference_number);
+    if (match) return match;
+    
+    // 3. Try custom fields
+    if (Array.isArray(e.custom_fields)) {
+        for (const cf of e.custom_fields) {
+            match = findMatch(cf.value);
+            if (match) return match;
+        }
+    }
+    
+    // 4. Try notes (case-insensitive substring match)
+    if (e.notes) {
+        const cleanNotes = e.notes.toLowerCase();
+        const found = allCompanies.find(c => cleanNotes.includes(c.toLowerCase()));
+        if (found) return found;
+    }
+    
     return '';
 }
 
@@ -374,4 +414,11 @@ if (document.getElementById('filterFrom')) {
 if (document.getElementById('filterTo')) {
     document.getElementById('filterTo').value = defaultToDate;
 }
+
+// Populate company filter dropdown
+const filterCompany = document.getElementById('filterCompany');
+if (filterCompany && typeof getCompanyOptionsHTML === 'function') {
+    filterCompany.innerHTML = '<option value="">All</option>' + getCompanyOptionsHTML();
+}
+
 loadExpenses();
