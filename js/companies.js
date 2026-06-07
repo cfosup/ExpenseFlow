@@ -105,6 +105,45 @@ function closeAddCompanyModal() {
     }
 }
 
+// Fetch companies from the n8n webhook and update dropdowns
+async function fetchCompanyNames() {
+    try {
+        const url = (typeof CONFIG !== 'undefined' && CONFIG.COMPANY_NAMES_URL) || "https://n8n.skillednation.ai/webhook/company_names";
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (Array.isArray(data)) {
+            // Map webhook companies to standard format
+            const webhookCompanies = data.map(c => ({
+                company_name: c.company_name,
+                zoho_organization_id: "60061889304"
+            }));
+            
+            // Get current local companies to preserve any unsynced ones
+            const currentLocal = getCompanies();
+            
+            // Merge: start with webhook companies
+            const merged = [...webhookCompanies];
+            
+            // Add local ones if they aren't in the webhook list yet
+            currentLocal.forEach(local => {
+                const exists = merged.some(w => w.company_name.toLowerCase() === local.company_name.toLowerCase());
+                if (!exists) {
+                    merged.push(local);
+                }
+            });
+            
+            // Save and update
+            saveCompanies(merged);
+            updateAllCompanySelects();
+        }
+    } catch (error) {
+        console.error("Failed to fetch company names from webhook:", error);
+    }
+}
+
 // Inject Modal HTML dynamically into DOM on page load
 function injectAddCompanyModal() {
     if (document.getElementById('companyModalOverlay')) return; // Already injected
@@ -120,10 +159,6 @@ function injectAddCompanyModal() {
                     <div class="form-group">
                         <label for="newCompanyName">Company Name</label>
                         <input type="text" id="newCompanyName" placeholder="e.g. PERSONAL" required autocomplete="off">
-                    </div>
-                    <div class="form-group">
-                        <label for="newCompanyOrgId">Zoho Organization ID</label>
-                        <input type="text" id="newCompanyOrgId" value="60061889304" required autocomplete="off">
                     </div>
                     <div class="company-modal-actions">
                         <button type="button" class="btn btn-outline btn-sm" onclick="closeAddCompanyModal()">Cancel</button>
@@ -145,13 +180,12 @@ function injectAddCompanyModal() {
             e.preventDefault();
 
             const nameInput = document.getElementById('newCompanyName');
-            const orgIdInput = document.getElementById('newCompanyOrgId');
             const saveBtn = document.getElementById('saveCompanyBtn');
 
             const companyName = nameInput.value.trim();
-            const zohoOrgId = orgIdInput.value.trim();
+            const zohoOrgId = "60061889304"; // Set internally and keep as default
 
-            if (!companyName || !zohoOrgId) return;
+            if (!companyName) return;
 
             // Show loading state
             saveBtn.disabled = true;
@@ -196,6 +230,9 @@ function injectAddCompanyModal() {
                 closeAddCompanyModal();
                 updateAllCompanySelects();
 
+                // Fetch updated company list from webhook
+                fetchCompanyNames();
+
             } catch (err) {
                 console.error("Error creating company via webhook:", err);
                 
@@ -239,8 +276,11 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         injectAddCompanyModal();
         updateAllCompanySelects();
+        fetchCompanyNames();
     });
 } else {
     injectAddCompanyModal();
     updateAllCompanySelects();
+    fetchCompanyNames();
 }
+

@@ -21,4 +21,8 @@ const CONFIG = {
 
     // n8n Webhook: Create new dynamic company
     CREATE_COMPANY_URL: "https://n8n.skillednation.ai/webhook/create_company",
+
+    // n8n Webhook: Get all company names
+    COMPANY_NAMES_URL: "https://n8n.skillednation.ai/webhook/company_names",
 };
+
